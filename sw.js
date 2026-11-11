@@ -1,5 +1,5 @@
 /* Smudge service worker: works offline after the first visit */
-const VERSION = 'smudge-v1';
+const VERSION = 'smudge-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

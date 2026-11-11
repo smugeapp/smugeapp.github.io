@@ -173,8 +173,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .selbox .rot::after{content:"";position:absolute;left:50%;top:19px;width:2px;height:18px;margin-left:-1px;background:var(--cur)}
 .stbar{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:6;display:flex;flex-wrap:wrap;justify-content:center;gap:4px;
   width:max-content;max-width:calc(100% - 24px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 10px 26px rgba(10,20,45,.2)}
-.stbar[hidden]{display:none}
+.stbar[hidden],.stbar .btn[hidden]{display:none}
 .stbar .btn{height:32px;font-size:13px;padding:0 9px}
+.facebar{flex-basis:100%;display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:3px;width:min(440px,calc(100vw - 48px));padding-top:4px;border-top:1px solid var(--line);margin-top:2px}
+.facebar[hidden]{display:none}
+.facebar button{height:36px;border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;font-size:22px;padding:0;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.facebar button:hover{background:var(--hover)}
+.facebar button[aria-pressed="true"]{border-color:var(--cur)}
+.facebar .noface{grid-column:span 2;font-size:12px;font-weight:600;font-family:inherit;color:inherit}
 .sgh{font-size:13px;font-weight:600;color:var(--muted);margin:10px 0 6px}
 .sgh:first-child{margin-top:0}
 .slist{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -300,6 +306,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     </div>
     <div class="stbar" id="stbar" role="toolbar" aria-label="Sticker" hidden>
       <button class="btn" data-sa="text" title="Change the words (or double-click the bubble)" hidden>✏️ Words</button>
+      <button class="btn" data-sa="face" title="Give this stick person an emoji face" aria-expanded="false" hidden>😀 Face</button>
       <button class="btn" data-sa="copy" title="Copy (Ctrl+C)">Copy</button>
       <button class="btn" data-sa="paste" title="Paste (Ctrl+V)">Paste</button>
       <button class="btn" data-sa="dup" title="Duplicate (Ctrl+D)">Duplicate</button>
@@ -308,12 +315,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <button class="btn" data-sa="back" title="Send to back">Back</button>
       <button class="btn" data-sa="del" title="Delete (Del)">Delete</button>
       <button class="btn primary" data-sa="done" title="Done (Esc)">Done</button>
+      <div class="facebar" id="facebar" role="group" aria-label="Pick a face" hidden></div>
     </div>
 <div class="pop helppop" id="helpPop" role="dialog" aria-label="How to use Smudge" hidden>
       <div class="head"><b>How to use Smudge</b><button class="btn" id="helpClose" aria-label="Close">✕</button></div>
       <ul>
         <li><b>Paint:</b> pick a brush on the left and a colour on the right.</li>
         <li><b>Stickers:</b> drag to move, corner dot to resize, top dot to turn. Copy, paste and flip from the toolbar.</li>
+        <li><b>Faces:</b> drag a face sticker onto a stick person's head to give them that face, or pick a stick person and tap <b>😀 Face</b>.</li>
         <li><b>Outlines:</b> colouring pictures, letters and numbers. The fill bucket colours inside the lines.</li>
         <li><b>Shapes:</b> drag from corner to corner. Hold Shift for perfect circles and squares.</li>
         <li><b>Word art, backgrounds and frames</b> are in the right panel.</li>
@@ -1454,7 +1463,9 @@ const STK={
   trice:{label:'Triceratops',group:'Dinosaurs',box:[-1.2,-1.26,1.16,.04],color:'#7E57C2',fit:.28,draw:(c,k)=>DINOS[3](c,k,hexShade(k,-14),hexShade(k,16))}
 };
 /* stick figures: lines in units, ground at y=0, about 3 units tall */
-function stickHead(c,k,x,y,face=0,mood='smile'){
+function stickHead(c,k,x,y,face=0,mood='smile',emo){
+  if(emo){c.save();c.translate(x,y);const m=c.getTransform();if(m.a*m.d-m.b*m.c<0)c.scale(-1,1);
+    c.scale(.01,.01);c.font='84px '+EMOJI_FONT;c.textAlign='center';c.textBaseline='middle';c.fillStyle='#000';c.fillText(emo,0,5);c.restore();return}
   c.beginPath();c.arc(x,y,.33,0,7);c.stroke();const fx=x+face;
   c.fillStyle=k;for(const s of [-1,1]){c.beginPath();c.arc(fx+s*.12,y-.06,.045,0,7);c.fill()}
   c.lineWidth=.07;c.beginPath();
@@ -1467,9 +1478,9 @@ function stickHead(c,k,x,y,face=0,mood='smile'){
   if(mood==='shout'){c.beginPath();c.ellipse(fx,y+.13,.09,.11,0,0,7);c.fill()}
   if(mood==='shock'){c.lineWidth=.05;c.beginPath();c.ellipse(fx,y+.16,.07,.1,0,0,7);c.stroke();for(const s of [-1,1]){c.beginPath();c.arc(fx+s*.12,y-.06,.08,0,7);c.stroke()}}
   c.lineWidth=.14}
-function stickDraw(c,k,head,lines,face,extra){c.strokeStyle=k;c.lineWidth=.14;c.lineCap='round';c.lineJoin='round';
+function stickDraw(c,k,head,lines,face,extra,faces){c.strokeStyle=k;c.lineWidth=.14;c.lineCap='round';c.lineJoin='round';
   c.beginPath();for(const l of lines){c.moveTo(l[0],l[1]);for(let i=2;i<l.length;i+=2)c.lineTo(l[i],l[i+1])}c.stroke();
-  for(const hd of head)stickHead(c,k,hd[0],hd[1],hd[2]??face??0,hd[3]);
+  head.forEach((hd,i)=>stickHead(c,k,hd[0],hd[1],hd[2]??face??0,hd[3],faces&&faces[i]));
   if(extra){c.strokeStyle0=k;extra(c,k)}}
 const STICK={
   stand:['Standing',[-.78,-3.08,.78,.1],c=>[[[0,-2.65]],[[0,-2.3,0,-1.2],[-.55,-1.4,0,-2,.55,-1.4],[-.4,0,0,-1.2,.4,0]]]],
@@ -1490,7 +1501,7 @@ const STICK={
   friends:['Friends',[-1.5,-3.08,1.5,.1],c=>[[[-.75,-2.65],[.75,-2.65]],[[-.75,-2.3,-.75,-1.2],[-1.3,-1.4,-.75,-2,0,-1.55,.75,-2,1.3,-1.4],[-1.15,0,-.75,-1.2,-.35,0],[.35,0,.75,-1.2,1.15,0],[.75,-2.3,.75,-1.2]]]]
 };
 for(const id in STICK){const [label,box,fn]=STICK[id];
-  STK['stick_'+id]={label,group:'People',box,mirror:id==='shout',color:'#1C2434',fit:(box[2]-box[0])*.075,draw(c,k){const [hd,ln,fc,ex]=fn();stickDraw(c,k,hd,ln,fc,ex)}};
+  STK['stick_'+id]={label,group:'People',box,stick:true,heads:()=>fn()[0],mirror:id==='shout',color:'#1C2434',fit:(box[2]-box[0])*.075,draw(c,k,s){const [hd,ln,fc,ex]=fn();stickDraw(c,k,hd,ln,fc,ex,s&&s.faces)}};
   if(id==='shout'){STK.stick_shout.label='Shouting left';STK.stick_shoutR={...STK.stick_shout,label:'Shouting right',mirror:false}}}
 /* speech bubbles with your own words */
 function bubbleText(c,k,s,K){
@@ -1518,14 +1529,17 @@ STK.bubble_shout={label:'Shout',group:'Speech bubbles',bubble:true,caps:true,def
   c.fillStyle='#FFF1A8';c.fill();c.strokeStyle=k;c.lineWidth=.07;c.lineJoin='round';c.stroke();bubbleText(c,k,s,this)}};
 PETS.forEach((e,i)=>{STK['pet'+i]={label:e,group:'Pets & farm',box:[-1,-1,1,1],emoji:e,fit:.13}});
 
+const FACES=['😀','😁','😂','🤣','😊','😇','🙂','😉','😍','🥰','😘','😋','😜','🤪','😎','🤓','🥳','🤩','😏','🤗',
+  '🤔','🤫','😴','😮','😲','😳','🥺','😢','😭','😡','😱','🤯','🥶','🥵','🤢','🤧','😬','🤠','🤡','😈'];
+FACES.forEach((e,i)=>{STK['face'+i]={label:e,group:'Faces',box:[-1,-1,1,1],emoji:e,face:true,fit:.11}});
 const PACKS=[['Vehicles','veh',['🚗','🚕','🚌','🚓','🚑','🚒','🚜','🏎️','🚲','🛵','🚂','✈️','🚁','🚀','⛵','🚢']],
   ['Sky & nature','sky',['☀️','🌙','⭐','☁️','🌈','⚡','❄️','🌋','🪐','☄️','🌊','🔥','🌸','🌻','🍄','🌴']],
   ['Food & treats','food',['🍎','🍌','🍉','🍓','🍕','🍔','🍟','🌭','🍦','🍩','🍪','🎂','🍭','🧁','🥕','🌽']],
   ['Fun things','fun',['🎈','🎁','⚽','🏀','🎸','🎨','👑','💎','🏰','🎪','🎠','🤖','👻','👽','🦄','🐉']]];
 for(const [g,pre,list] of PACKS)list.forEach((e,i)=>{STK[pre+i]={label:e,group:g,box:[-1,-1,1,1],emoji:e,fit:.13}});
-const STK_GROUPS=['Scenery','People','Speech bubbles','Dinosaurs','Pets & farm','Vehicles','Sky & nature','Food & treats','Fun things'];
+const STK_GROUPS=['Scenery','People','Faces','Speech bubbles','Dinosaurs','Pets & farm','Vehicles','Sky & nature','Food & treats','Fun things'];
 let stkReady=true,stickers=[],sel=null,clip=null,pasteN=0,op=null,lastRecolor=0;
-const selbox=$('#selbox'),stbar=$('#stbar');
+const selbox=$('#selbox'),stbar=$('#stbar'),facebar=$('#facebar');
 const sDims=s=>{if(STK[s.k].word)return{w:s.w,h:s.w*(s.ar||.4)};const b=STK[s.k].box;return{w:s.w,h:s.w*(b[3]-b[1])/(b[2]-b[0])}};
 function drawSticker(c,s){
   const K=STK[s.k];if(!K)return;const {w,h}=sDims(s);
@@ -1550,9 +1564,10 @@ function placeSelbox(){
   selbox.style.transform=`translate(${s.x-w/2-pad}px,${s.y-h/2-pad}px) rotate(${s.r}rad)`;
   stbar.querySelector('[data-sa="paste"]').disabled=!clip;
   stbar.querySelector('[data-sa="text"]').hidden=!(STK[s.k].bubble||STK[s.k].word);
+  stbar.querySelector('[data-sa="face"]').hidden=!STK[s.k].stick;if(!STK[s.k].stick)closeFaceBar();else markFaces();
   if(!bubin.hidden&&editS===s){bubin.style.left=s.x+'px';bubin.style.top=s.y+'px'}
 }
-function selectSticker(s){sel=s;placeSelbox()}
+function selectSticker(s){if(s!==sel)closeFaceBar();sel=s;placeSelbox()}
 let stkT;function saveStickers(){clearTimeout(stkT);captureFrame();stkT=setTimeout(()=>{try{localStorage.setItem('smudge:stickers',JSON.stringify(stickers))}catch(e){}},400)}
 function changed(){renderStickers();saveStickers()}
 function hitSticker(p){
@@ -1578,8 +1593,30 @@ const stickerActions={
   back(){if(!sel)return;pushUndo();stickers=stickers.filter(s=>s!==sel);stickers.unshift(sel);changed()},
   del(){if(!sel)return;pushUndo();stickers=stickers.filter(s=>s!==sel);selectSticker(null);changed()},
   done(){selectSticker(null)},
-  text(){if(sel&&(STK[sel.k].bubble||STK[sel.k].word))openBubbleEdit(sel)}
+  text(){if(sel&&(STK[sel.k].bubble||STK[sel.k].word))openBubbleEdit(sel)},
+  face(){if(!sel||!STK[sel.k].stick)return;facebar.hidden?openFaceBar():closeFaceBar()}
 };
+/* emoji faces for stick people */
+for(const e of [null,...FACES]){const b=document.createElement('button');b.type='button';b.dataset.e=e||'';
+  if(e){b.textContent=e;b.setAttribute('aria-label','Face '+e)}else{b.className='noface';b.textContent='Drawn face'}
+  b.addEventListener('click',ev=>{ev.stopPropagation();setFaces(sel,e)});facebar.append(b)}
+function openFaceBar(){facebar.hidden=false;stbar.querySelector('[data-sa="face"]').setAttribute('aria-expanded','true');markFaces()}
+function closeFaceBar(){facebar.hidden=true;const b=stbar.querySelector('[data-sa="face"]');if(b)b.setAttribute('aria-expanded','false')}
+function markFaces(){if(!sel||facebar.hidden)return;const f=sel.faces&&sel.faces[0]||'';facebar.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.e===f))}
+function setFaces(s,e){if(!s||!STK[s.k].stick)return;sfx('pop');pushUndo();
+  if(e)s.faces=STK[s.k].heads().map(()=>e);else delete s.faces;changed();markFaces()}
+/* where a stick person's heads are on the page */
+function stickHeadsOnPage(t){const K=STK[t.k],b=K.box,k=t.w/(b[2]-b[0]),cxu=(b[0]+b[2])/2,cyu=(b[1]+b[3])/2,fl=!!t.f!==!!K.mirror,co=Math.cos(t.r),si=Math.sin(t.r);
+  return K.heads().map(h=>{let lx=(h[0]-cxu)*k,ly=(h[1]-cyu)*k;if(fl)lx=-lx;return{x:t.x+lx*co-ly*si,y:t.y+lx*si+ly*co,r:.33*k}})}
+/* dropping a face sticker on a stick person's head puts that face on them */
+function tryAttachFace(s){
+  if(!STK[s.k]||!STK[s.k].face)return false;const fr=sDims(s).w/2;
+  for(let i=stickers.length-1;i>=0;i--){const t=stickers[i];if(t===s||!STK[t.k]||!STK[t.k].stick)continue;
+    const hs=stickHeadsOnPage(t);
+    for(let j=0;j<hs.length;j++){const h=hs[j];if(Math.hypot(s.x-h.x,s.y-h.y)<=h.r*1.3+fr*.5){
+      const n=STK[t.k].heads().length,f=t.faces?[...t.faces]:Array(n).fill(null);f[j]=STK[s.k].emoji;t.faces=f;
+      stickers=stickers.filter(x=>x!==s);selectSticker(t);sfx('pop');changed();toast('New face! 🎉');return true}}}
+  return false}
 stbar.querySelectorAll('[data-sa]').forEach(b=>b.addEventListener('click',()=>stickerActions[b.dataset.sa]()));
 function recolorSelected(hex){
   if(!sel||!stickers.includes(sel)||STK[sel.k].emoji)return;
@@ -1611,14 +1648,14 @@ function doOp(e){
   else{let r=op.r0+Math.atan2(p.y-s.y,p.x-s.x)-op.a0;const st=Math.PI/12,n=Math.round(r/st);if(Math.abs(r-n*st)<.06)r=n*st;s.r=r}
   renderStickers();
 }
-const endOp=e=>{if(!op||e.pointerId!==op.id)return;if(op.pushed)saveStickers();op=null};
+const endOp=e=>{if(!op||e.pointerId!==op.id)return;const o=op;op=null;if(o.pushed){if(!(o.kind==='move'&&tryAttachFace(o.s)))saveStickers()}};
 window.addEventListener('pointerup',endOp);window.addEventListener('pointercancel',endOp);
 /* sticker picker */
 const spop=$('#spop'),stBtn=$('#stickersBtn'),sgroups=$('#sgroups');
 for(const g of STK_GROUPS){
   const hd=document.createElement('div');hd.className='sgh';hd.textContent=g;const list=document.createElement('div');list.className='slist';
   for(const k in STK){const K=STK[k];if(K.group!==g)continue;
-    const b=document.createElement('button');b.className='st'+(K.emoji?' emo2':'');b.setAttribute('aria-label','Add '+(K.emoji?'animal '+K.emoji:K.label));
+    const b=document.createElement('button');b.className='st'+(K.emoji?' emo2':'');b.setAttribute('aria-label','Add '+(K.emoji?(K.face?'face ':'sticker ')+K.emoji:K.label));
     if(K.emoji)b.textContent=K.emoji;
     else{const c=document.createElement('canvas');c.width=c.height=120;const g2=c.getContext('2d');
       const bw=K.box[2]-K.box[0],bh=K.box[3]-K.box[1],sw=Math.min(104/bw,104/bh)*bw;
